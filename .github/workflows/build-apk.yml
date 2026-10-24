@@ -1,0 +1,63 @@
+
+name: Build KPBI Barongsay APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Extract project ZIP
+        shell: bash
+        run: |
+          set -e
+          mkdir -p /tmp/kpbi-package
+          unzip -o kpbi-barongsay-android.zip -d /tmp/kpbi-package
+
+          PROJECT_DIR="/tmp/kpbi-package/kpbi-barongsay-android"
+
+          test -f "$PROJECT_DIR/app/build.gradle"
+          cp -a "$PROJECT_DIR/." .
+          test -f settings.gradle
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.9'
+
+      - name: Verify project
+        run: gradle projects --no-daemon
+
+      - name: Build APK
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kpbi-barongsay-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
